@@ -1,9 +1,13 @@
-const { json } = require("body-parser");
+// const { json } = require("body-parser");
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const { session } = require("passport");
+
 const passport = require("passport");
+//const { session } = require("passport");
+
+// Load Input Validation
+const validateProfileInput = require("../../validation/profile");
 
 // Load Profile Model
 const Profile = require("../../models/Profile");
@@ -20,12 +24,14 @@ router.get("/test", (req, res) => res.json({ msg: "Profile Works" }));
 // @desc Get current user profile
 // @access Private
 router.get(
+  // we can use authentication for getting particular user profile
   "/",
   passport.authenticate("jwt", { session: false }),
   (req, res) => {
     const errors = {};
 
-    Profile.findOne({ user: req.user.id })
+    Profile.findOne({ user: req.user.id }) // token will put the user in user
+      .populate("user", ["name", "avatar"])
       .then((profile) => {
         if (!profile) {
           errors.noprofile = "There is no profile for this user";
@@ -37,6 +43,66 @@ router.get(
   }
 );
 
+// @route GET api/profile/all
+// @desc Get all profile
+// @access Public
+router.get("/all", (req, res) => {
+  errors = {};
+
+  Profile.find()
+    .populate("user", ["name", "avatar"])
+    .then((profile) => {
+      if (!profile) {
+        errors.noprofile = "There are no profiles";
+        res.status(404).json(errors);
+      }
+
+      res.json(profile);
+    })
+    .catch((err) => res.status(404).json({ profile: "There are no profiles" }));
+});
+
+// @route GET api/profile/handle/:handle
+// @desc Get profile by handle
+// @access Public
+router.get("/handle/:handle", (req, res) => {
+  errors = {};
+
+  Profile.findOne({ handle: req.params.handle })
+    .populate("user", ["name", "avatar"])
+    .then((profile) => {
+      if (!profile) {
+        errors.noprofile = "There is no profile for this user";
+        res.status(404).json(errors);
+      }
+
+      res.json(profile);
+    })
+    .catch((err) => res.status(404).json(err));
+});
+
+// @route GET api/profile/user/:user_id
+// @desc Get profile by user
+// @access Public
+router.get("/user/:user_id", (req, res) => {
+  errors = {};
+
+  Profile.findOne({ user: req.params.user_id })
+    .populate("user", ["name", "avatar"])
+    .then((profile) => {
+      if (!profile) {
+        errors.noprofile = "There is no profile for this user";
+        res.status(404).json(errors);
+      }
+
+      res.json(profile);
+    })
+    .catch(
+      (err) =>
+        res.status(404).json({ profile: "There is no profile for this users" }) //else it throws mongo error
+    );
+});
+
 // @route POST api/profile/
 // @desc Create or Edit user profile
 // @access Private
@@ -44,10 +110,17 @@ router.post(
   "/",
   passport.authenticate("jwt", { session: false }),
   (req, res) => {
+    const { errors, isValid } = validateProfileInput(req.body);
+
+    // Check validation
+    if (!isValid) {
+      // Return any errors with a status of 400
+      return res.status(400).json(errors);
+    }
     // Get Fields
     const profileFields = {};
-
-    profileFields.user = req.user.id; // includes avatar name and email
+    profileFields.user = req.user.id;
+    // above includes avatar name and email beacuse it does nt come from profiles
 
     if (req.body.handle) profileFields.handle = req.body.handle; // if hanlde sent than
     if (req.body.company) profileFields.company = req.body.company;
@@ -71,6 +144,7 @@ router.post(
     if (req.body.instagram) profileFields.social.instagram = req.body.instagram;
 
     Profile.findOne({ user: req.user.id }).then((profile) => {
+      // finding user which gives profile
       if (profile) {
         //Update
         Profile.findOneAndUpdate(
@@ -80,6 +154,7 @@ router.post(
         ).then((proile) => res.json(proile));
       } else {
         // Create
+
         // Check if handle exist
         Profile.findOne({ handle: profileFields.handle }).then((profile) => {
           if (profile) {
