@@ -14,7 +14,7 @@ const validateEducationInput = require("../../validation/education");
 // Load Profile Model
 const Profile = require("../../models/Profile");
 
-// Load Profile Model
+// Load User Model
 const User = require("../../models/User");
 const profile = require("../../validation/profile");
 
