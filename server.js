@@ -18,7 +18,7 @@ const db = require("./config/keys").mongoURI;
 
 // Connect to MongoDB
 mongoose
-  .connect(db)
+  .connect(db, { useNewUrlParser: true, useUnifiedTopology: true }) // extra code for removing warning
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log(err));
 
